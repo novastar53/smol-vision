@@ -1,0 +1,38 @@
+import jax
+import jax.numpy as jnp
+import flax.nnx as nnx
+import optax
+
+from smol_vision.model import Config, SmolVision
+from smol_vision.datasets.recap_coco import DataConfig, make_dataloader, visualize_batch
+
+
+config = Config()
+rngs = nnx.Rngs(default=0)
+m = SmolVision(config, rngs)
+
+cfg = DataConfig(batch_size=8, num_epochs=1, shuffle=False, augment=False)
+it = make_dataloader("train", cfg, "UCSC-VLAA/Recap-COCO-30K")
+
+def loss_fn(m, imgs, toks):
+    logits = m(imgs, toks)
+    loss = optax.softmax_cross_entropy_with_integer_labels(logits, toks)
+    loss = loss.mean()
+    return loss
+
+@nnx.jit
+def step_fn(m, optimizer, imgs, toks):
+    loss, grads = nnx.value_and_grad(loss_fn)(m, imgs, toks)
+    optimizer.update(m, grads)
+    return loss
+
+tx = optax.adam(1e-3)
+optimizer = nnx.Optimizer(m, tx, wrt=nnx.Param)
+
+
+#visualize_batch(imgs, toks)
+for i in range(10):
+    imgs, toks = next(it)
+    logits = m(imgs, toks)
+    loss = step_fn(m, optimizer, imgs, toks)
+    print(f"{loss=}")
