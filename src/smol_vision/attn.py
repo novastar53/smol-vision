@@ -9,9 +9,24 @@ from smol_vision.rope import RoPE
 class SelfAttention(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs, causal: bool = False):
         self.config = config
-        self.causal=causal
-        self.qkv = nnx.Linear(config.n_embed, 3 * config.n_embed, rngs=rngs)
+        self.causal = causal
+        self.qkv = nnx.Linear(config.n_embed, 3 * config.n_embed, 
+                              kernel_init=nnx.initializers.normal(stddev=config.init_stddev),
+                              use_bias=False,
+                              rngs=rngs)
         self.rope = RoPE(config)
+        self.wproj = nnx.Linear(
+            config.n_embed,
+            config.n_embed,
+            kernel_init=nnx.initializers.normal(
+                    stddev=config.init_stddev * (2 * (config.n_text_layers + config.n_vision_layers)) ** -0.5
+            ),
+            bias_init= nnx.initializers.zeros,
+            use_bias=False,
+            dtype=config.dtype,
+            rngs=rngs,
+        )
+ 
 
 
     def __call__(self, x):
@@ -34,4 +49,5 @@ class SelfAttention(nnx.Module):
                 is_causal=True,
         )
         y = y.reshape(B, T, C)
+        y = self.wproj(y)
         return y

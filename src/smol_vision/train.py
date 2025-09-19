@@ -31,8 +31,10 @@ optimizer = nnx.Optimizer(m, tx, wrt=nnx.Param)
 
 
 #visualize_batch(imgs, toks)
-for i in range(10):
-    imgs, toks = next(it)
+imgs, toks = next(it)
+for i in range(20):
+    print(f"{imgs.shape=}")
+    print(f"{toks.shape=}")
     logits = m(imgs, toks)
     loss = step_fn(m, optimizer, imgs, toks)
     print(f"{loss=}")

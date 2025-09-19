@@ -7,7 +7,9 @@ from dataclasses import dataclass
 
 @dataclass
 class Config:
-    dtype: jnp.dtype = jnp.float32
+    dtype: jnp.dtype = jnp.bfloat16
+    param_dtype: jnp.dtype = jnp.float32
+    init_stddev: float = 0.02
     vocab_size: int = 50304
     block_size: int = 2048 
     n_vision_layers: int = 4

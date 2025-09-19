@@ -11,8 +11,12 @@ class VisionBlock(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs):
         self.config = config
         self.attn = SelfAttention(config, rngs=rngs, causal=False)
-        self.rms_n_1 = nnx.RMSNorm(config.n_embed, rngs=rngs)
-        self.rms_n_2 = nnx.RMSNorm(config.n_embed, rngs=rngs)
+        self.rms_n_1 = nnx.RMSNorm(config.n_embed, 
+                                   scale_init=nnx.initializers.ones,
+                                   dtype=config.dtype, rngs=rngs)
+        self.rms_n_2 = nnx.RMSNorm(config.n_embed, 
+                                   scale_init=nnx.initializers.ones,
+                                   dtype=config.dtype, rngs=rngs)
         self.glu = GLU(config, rngs)
 
 
@@ -26,8 +30,12 @@ class TextBlock(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs):
         self.config = config
         self.attn = SelfAttention(config, rngs=rngs, causal=True)
-        self.rms_n_1 = nnx.RMSNorm(config.n_embed, rngs=rngs)
-        self.rms_n_2 = nnx.RMSNorm(config.n_embed, rngs=rngs)
+        self.rms_n_1 = nnx.RMSNorm(config.n_embed, 
+                                   scale_init=nnx.initializers.ones,
+                                   dtype=config.dtype, rngs=rngs)
+        self.rms_n_2 = nnx.RMSNorm(config.n_embed, 
+                                   scale_init=nnx.initializers.ones,
+                                   dtype=config.dtype, rngs=rngs)
         self.glu = GLU(config, rngs)
 
 
@@ -44,8 +52,15 @@ class SmolVision(nnx.Module):
         self.text_blocks = [ TextBlock(config, rngs) for _ in range(config.n_text_layers) ]
         self.patch_embed = nnx.Linear(config.n_channels * config.patch_size * config.patch_size, 
                                       config.n_embed, 
+                                      kernel_init=nnx.initializers.normal(stddev=config.init_stddev),
+                                      dtype=config.dtype,
                                       rngs=rngs)
-        self.token_embed = nnx.Embed(config.vocab_size, config.n_embed, rngs=rngs)
+        self.token_embed = nnx.Embed(config.vocab_size, config.n_embed, 
+                                     embedding_init=nnx.initializers.normal(stddev=config.init_stddev),
+                                     dtype=config.dtype, rngs=rngs)
+        self.rms_n_f = nnx.RMSNorm(config.n_embed, 
+                                   scale_init=nnx.initializers.ones,
+                                   dtype=config.dtype, rngs=rngs)
 
 
     def __call__(self, x_image, x_text):
@@ -65,8 +80,8 @@ class SmolVision(nnx.Module):
         x = jnp.concat([x_image, x_text], axis=1)
         for i in range(self.config.n_text_layers):
             x = self.text_blocks[i](x)
-        x_tokens = x[:, -T:, :]
-        y = self.token_embed.attend(x_tokens)
+        x = self.rms_n_f(x)
+        y = self.token_embed.attend(x[:, -T:, :])
         return y
 
 
