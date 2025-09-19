@@ -10,17 +10,17 @@ class GLU(nnx.Module):
         self.config = config
         self.c_fc = nnx.Linear(config.n_embed, config.n_hidden,
                                 kernel_init=nnx.initializers.normal(stddev=0.02),
-                                use_bias=False,
+                                use_bias=config.use_bias,
                                 rngs=rngs)
         self.gate = nnx.Linear(config.n_embed, config.n_hidden, 
                                 kernel_init=nnx.initializers.normal(stddev=0.02),
-                                use_bias=False,
+                                use_bias=config.use_bias,
                                 rngs=rngs)
         self.c_proj = nnx.Linear(config.n_hidden, config.n_embed, 
                                  kernel_init=nnx.initializers.normal(
                                     stddev=0.02 * (2 * (config.n_text_layers + config.n_vision_layers)) ** -0.5
                                  ),
-                                 use_bias=False,
+                                 use_bias=config.use_bias,
                                  rngs=rngs)
 
     

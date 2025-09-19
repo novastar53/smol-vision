@@ -12,7 +12,7 @@ class SelfAttention(nnx.Module):
         self.causal = causal
         self.qkv = nnx.Linear(config.n_embed, 3 * config.n_embed, 
                               kernel_init=nnx.initializers.normal(stddev=config.init_stddev),
-                              use_bias=False,
+                              use_bias=config.use_bias,
                               rngs=rngs)
         self.rope = RoPE(config)
         self.wproj = nnx.Linear(
@@ -21,8 +21,7 @@ class SelfAttention(nnx.Module):
             kernel_init=nnx.initializers.normal(
                     stddev=config.init_stddev * (2 * (config.n_text_layers + config.n_vision_layers)) ** -0.5
             ),
-            bias_init= nnx.initializers.zeros,
-            use_bias=False,
+            use_bias=config.use_bias,
             dtype=config.dtype,
             rngs=rngs,
         )

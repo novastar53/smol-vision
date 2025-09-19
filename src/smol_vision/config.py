@@ -9,6 +9,7 @@ from dataclasses import dataclass
 class Config:
     dtype: jnp.dtype = jnp.bfloat16
     param_dtype: jnp.dtype = jnp.float32
+    use_bias: bool = True
     init_stddev: float = 0.02
     vocab_size: int = 50304
     block_size: int = 2048 

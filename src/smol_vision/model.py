@@ -6,16 +6,13 @@ from smol_vision.config import Config
 from smol_vision.glu import GLU
 from smol_vision.attn import SelfAttention
 
-
 class VisionBlock(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs):
         self.config = config
         self.attn = SelfAttention(config, rngs=rngs, causal=False)
         self.rms_n_1 = nnx.RMSNorm(config.n_embed, 
-                                   scale_init=nnx.initializers.ones,
                                    dtype=config.dtype, rngs=rngs)
         self.rms_n_2 = nnx.RMSNorm(config.n_embed, 
-                                   scale_init=nnx.initializers.ones,
                                    dtype=config.dtype, rngs=rngs)
         self.glu = GLU(config, rngs)
 
@@ -25,47 +22,20 @@ class VisionBlock(nnx.Module):
         x = x + self.glu(self.rms_n_2(x))
         return x
 
-
-class TextBlock(nnx.Module):
+class VisionEncoder(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs):
         self.config = config
-        self.attn = SelfAttention(config, rngs=rngs, causal=True)
-        self.rms_n_1 = nnx.RMSNorm(config.n_embed, 
-                                   scale_init=nnx.initializers.ones,
-                                   dtype=config.dtype, rngs=rngs)
-        self.rms_n_2 = nnx.RMSNorm(config.n_embed, 
-                                   scale_init=nnx.initializers.ones,
-                                   dtype=config.dtype, rngs=rngs)
-        self.glu = GLU(config, rngs)
-
-
-    def __call__(self, x):
-        x = x + self.attn(self.rms_n_1(x))
-        x = x + self.glu(self.rms_n_2(x))
-        return x
-
-
-class SmolVision(nnx.Module):
-    def __init__(self, config: Config, rngs: nnx.Rngs):
-        self.config = config
-        self.vision_blocks = [ VisionBlock(config, rngs) for _ in range(config.n_vision_layers) ]
-        self.text_blocks = [ TextBlock(config, rngs) for _ in range(config.n_text_layers) ]
+        self.blocks = [ VisionBlock(config, rngs) for _ in range(config.n_vision_layers) ]
         self.patch_embed = nnx.Linear(config.n_channels * config.patch_size * config.patch_size, 
                                       config.n_embed, 
                                       kernel_init=nnx.initializers.normal(stddev=config.init_stddev),
+                                      use_bias=config.use_bias,
                                       dtype=config.dtype,
                                       rngs=rngs)
-        self.token_embed = nnx.Embed(config.vocab_size, config.n_embed, 
-                                     embedding_init=nnx.initializers.normal(stddev=config.init_stddev),
-                                     dtype=config.dtype, rngs=rngs)
-        self.rms_n_f = nnx.RMSNorm(config.n_embed, 
-                                   scale_init=nnx.initializers.ones,
-                                   dtype=config.dtype, rngs=rngs)
 
 
-    def __call__(self, x_image, x_text):
+    def __call__(self, x_image):
         B, _, _, _ = x_image.shape
-        _, T = x_text.shape
         x_image = x_image.reshape(B, self.config.n_channels, 
                                   self.config.grid_size, self.config.patch_size, 
                                   self.config.grid_size, self.config.patch_size)
@@ -75,13 +45,58 @@ class SmolVision(nnx.Module):
                               self.config.n_channels * self.config.patch_size * self.config.patch_size)
         x_image = self.patch_embed(x_image) 
         for i in range(self.config.n_vision_layers):
-            x_image = self.vision_blocks[i](x_image)
+            x_image = self.blocks[i](x_image)
+        return x_image
+
+
+class TextBlock(nnx.Module):
+    def __init__(self, config: Config, rngs: nnx.Rngs):
+        self.config = config
+        self.attn = SelfAttention(config, rngs=rngs, causal=True)
+        self.rms_n_1 = nnx.RMSNorm(config.n_embed, 
+                                   dtype=config.dtype, rngs=rngs)
+        self.rms_n_2 = nnx.RMSNorm(config.n_embed, 
+                                   dtype=config.dtype, rngs=rngs)
+        self.glu = GLU(config, rngs)
+
+
+    def __call__(self, x):
+        x = x + self.attn(self.rms_n_1(x))
+        x = x + self.glu(self.rms_n_2(x))
+        return x
+    
+
+class TextDecoder(nnx.Module):
+    def __init__(self, config: Config, rngs: nnx.Rngs):
+        self.config = config
+        self.text_blocks = [ TextBlock(config, rngs) for _ in range(config.n_text_layers) ]
+        self.token_embed = nnx.Embed(config.vocab_size, config.n_embed, 
+                                     embedding_init=nnx.initializers.normal(stddev=config.init_stddev),
+                                     dtype=config.dtype, rngs=rngs)
+        self.rms_n_f = nnx.RMSNorm(config.n_embed, 
+                                   dtype=config.dtype, rngs=rngs)
+    
+
+    def __call__(self, x_image, x_text):
+        _, T = x_text.shape
         x_text = self.token_embed(x_text)
         x = jnp.concat([x_image, x_text], axis=1)
         for i in range(self.config.n_text_layers):
             x = self.text_blocks[i](x)
         x = self.rms_n_f(x)
-        y = self.token_embed.attend(x[:, -T:, :])
+        x = self.token_embed.attend(x[:, -T:, :])
+        return x
+
+class SmolVision(nnx.Module):
+    def __init__(self, config: Config, rngs: nnx.Rngs):
+        self.config = config
+        self.vision_encoder = VisionEncoder(config, rngs)
+        self.text_decoder = TextDecoder(config, rngs)
+
+
+    def __call__(self, x_image, x_text):
+        x_image = self.vision_encoder(x_image)
+        y = self.text_decoder(x_image, x_text)
         return y
 
 
