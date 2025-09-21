@@ -11,8 +11,10 @@ class VisionBlock(nnx.Module):
         self.config = config
         self.attn = SelfAttention(config, rngs=rngs, causal=False)
         self.rms_n_1 = nnx.RMSNorm(config.n_embed, 
+                                   epsilon=config.ln_epsilon,
                                    dtype=config.dtype, rngs=rngs)
         self.rms_n_2 = nnx.RMSNorm(config.n_embed, 
+                                   epsilon=config.ln_epsilon,
                                    dtype=config.dtype, rngs=rngs)
         self.glu = GLU(config, rngs)
 
@@ -54,8 +56,10 @@ class TextBlock(nnx.Module):
         self.config = config
         self.attn = SelfAttention(config, rngs=rngs, causal=True)
         self.rms_n_1 = nnx.RMSNorm(config.n_embed, 
+                                   epsilon=config.ln_epsilon,
                                    dtype=config.dtype, rngs=rngs)
         self.rms_n_2 = nnx.RMSNorm(config.n_embed, 
+                                   epsilon=config.ln_epsilon,
                                    dtype=config.dtype, rngs=rngs)
         self.glu = GLU(config, rngs)
 
@@ -74,6 +78,7 @@ class TextDecoder(nnx.Module):
                                      embedding_init=nnx.initializers.normal(stddev=config.init_stddev),
                                      dtype=config.dtype, rngs=rngs)
         self.rms_n_f = nnx.RMSNorm(config.n_embed, 
+                                   epsilon=config.ln_epsilon,
                                    dtype=config.dtype, rngs=rngs)
     
 
@@ -86,6 +91,7 @@ class TextDecoder(nnx.Module):
         x = self.rms_n_f(x)
         x = self.token_embed.attend(x[:, -T:, :])
         return x
+
 
 class SmolVision(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs):
