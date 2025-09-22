@@ -6,6 +6,7 @@ from smol_vision.config import Config
 from smol_vision.glu import GLU
 from smol_vision.attn import SelfAttention
 
+
 class VisionBlock(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs):
         self.config = config
@@ -73,8 +74,8 @@ class TextBlock(nnx.Module):
 class TextDecoder(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs):
         self.config = config
-        self.text_blocks = [ TextBlock(config, rngs) for _ in range(config.n_text_layers) ]
-        self.token_embed = nnx.Embed(config.vocab_size, config.n_embed, 
+        self.h = [ TextBlock(config, rngs) for _ in range(config.n_text_layers) ]
+        self.wte = nnx.Embed(config.vocab_size, config.n_embed, 
                                      embedding_init=nnx.initializers.normal(stddev=config.init_stddev),
                                      dtype=config.dtype, rngs=rngs)
         self.rms_n_f = nnx.RMSNorm(config.n_embed, 
@@ -84,12 +85,12 @@ class TextDecoder(nnx.Module):
 
     def __call__(self, x_image, x_text):
         _, T = x_text.shape
-        x_text = self.token_embed(x_text)
+        x_text = self.wte(x_text)
         x = jnp.concat([x_image, x_text], axis=1)
         for i in range(self.config.n_text_layers):
-            x = self.text_blocks[i](x)
+            x = self.h[i](x)
         x = self.rms_n_f(x)
-        x = self.token_embed.attend(x[:, -T:, :])
+        x = self.wte.attend(x[:, -T:, :])
         return x
 
 

@@ -11,7 +11,7 @@ class Config:
     param_dtype: jnp.dtype = jnp.float32
     use_bias: bool = True
     init_stddev: float = 0.02
-    vocab_size: int = 50304
+    vocab_size: int = 49152
     block_size: int = 2048 
     n_vision_layers: int = 4
     n_text_layers: int = 30 
