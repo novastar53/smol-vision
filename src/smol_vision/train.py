@@ -54,7 +54,7 @@ it = make_dataloader("train", cfg, "UCSC-VLAA/Recap-COCO-30K")
 
 def loss_fn(m, imgs, toks, mask, labels):
     logits = m(imgs, toks)
-    loss = optax.softmax_cross_entropy_with_integer_labels(logits, labels)
+    loss = optax.softmax_cross_entropy_with_integer_labels(logits, toks)
     mask = mask.astype(logits.dtype)
     loss = loss * mask
     loss = loss.sum()/jnp.sum(mask)
@@ -109,7 +109,7 @@ for imgs, toks, mask, labels in it:
     # Truncate sequences at EOS for both predictions and targets
     pred_ids = jnp.argmax(logits, axis=-1)
     trunc_pred = truncate_at_eos(pred_ids, _eos_id)
-    trunc_gt   = truncate_at_eos(labels, _eos_id)
+    trunc_gt   = truncate_at_eos(toks, _eos_id)
 
     # Decode (skip special tokens for readability)
     pred_texts = [tok.decode(seq, skip_special_tokens=True) for seq in trunc_pred]
@@ -117,6 +117,6 @@ for imgs, toks, mask, labels in it:
 
     step += 1
 
-print("Predicted  - GT ")
-for pred, gt in zip(pred_texts, gt_texts):
-    print("  ", pred, "|", gt)
+    print("Predicted  - GT ")
+    for pred, gt in zip(pred_texts, gt_texts):
+        print("  ", pred, "|", gt)

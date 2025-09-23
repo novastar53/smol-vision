@@ -85,12 +85,13 @@ class TextDecoder(nnx.Module):
 
     def __call__(self, x_image, x_text):
         _, T = x_text.shape
+        _, IT, _ = x_image.shape
         x_text = self.wte(x_text)
         x = jnp.concat([x_image, x_text], axis=1)
         for i in range(self.config.n_text_layers):
             x = self.h[i](x)
         x = self.rms_n_f(x)
-        x = self.wte.attend(x[:, -T:, :])
+        x = self.wte.attend(x[:, -T-1:-1, :])
         return x
 
 
