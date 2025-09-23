@@ -3,9 +3,7 @@
 This module provides a `make_dataloader` function which yields batches of
 JAX arrays suitable for feeding into a Flax model: images as float32
 arrays with shape [B, C, H, W], and tokenized captions as int32 arrays
-with shape [B, L].
-
-Tokenization is done with the HuggingFace tokenizer (default: SmolLM-135M).
+with shape [B, L], along with a mask indicating valid tokens.
 """
 
 from __future__ import annotations
@@ -64,12 +62,13 @@ def _default_tokenizer(texts: list[str], max_length: int) -> np.ndarray:
     return out["input_ids"].astype(np.int32)
 
 
-def _hf_batch_generator(dataset_name: str, split: str, cfg: DataConfig) -> Iterator[Tuple[jnp.ndarray, jnp.ndarray]]:
+def _hf_batch_generator(dataset_name: str, split: str, cfg: DataConfig) -> Iterator[Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]]:
     """Iterate over a HuggingFace `datasets` dataset and yield JAX batches.
 
     This function performs minimal preprocessing (resize, normalize)
     using PIL and numpy, tokenizes captions with the configured tokenizer
-    (or the default SmolLM tokenizer), and yields batches as JAX arrays.
+    (or the default SmolLM tokenizer), and yields batches as JAX arrays along with a mask.
+    The mask indicates valid tokens, zeroing out tokens after the EOS token.
     """
     # direct imports are used; allow ImportError to propagate if dependencies are missing
 
@@ -84,6 +83,19 @@ def _hf_batch_generator(dataset_name: str, split: str, cfg: DataConfig) -> Itera
             pass
 
     tokenizer = cfg.tokenizer or (lambda texts, L: _default_tokenizer(texts, L))
+
+    # Determine EOS token id once
+    sample_tokens = tokenizer([""], cfg.max_length)
+    eos_id = sample_tokens[0][-1]
+
+    def make_mask(toks: np.ndarray) -> np.ndarray:
+        mask = np.ones_like(toks, dtype=np.int32)
+        for i, seq in enumerate(toks):
+            eos_positions = np.where(seq == eos_id)[0]
+            if len(eos_positions) > 0:
+                first_eos = eos_positions[0]
+                mask[i, first_eos+1:] = 0
+        return mask
 
     def proc_image(img_obj):
         # HF Image feature often yields PIL Image objects; accept numpy arrays too
@@ -135,8 +147,15 @@ def _hf_batch_generator(dataset_name: str, split: str, cfg: DataConfig) -> Itera
             if len(batch_imgs) == cfg.batch_size:
                 imgs_np = np.stack(batch_imgs, axis=0)
                 token_ids = tokenizer(batch_caps, cfg.max_length)
+                mask_np = make_mask(token_ids)
                 imgs_j = jnp.asarray(np.ascontiguousarray(imgs_np))
                 toks_j = jnp.asarray(np.ascontiguousarray(token_ids).astype(np.int32))
+                mask_j = jnp.asarray(mask_np)
+                labels_np = np.concatenate(
+                    [token_ids[:, 1:], np.full((token_ids.shape[0], 1), 0, dtype=np.int32)],
+                    axis=1
+                )
+                labels_j = jnp.asarray(labels_np)
                 if cfg.shard_for_pmap:
                     n_dev = jax.local_device_count()
                     b = imgs_j.shape[0]
@@ -144,7 +163,10 @@ def _hf_batch_generator(dataset_name: str, split: str, cfg: DataConfig) -> Itera
                     per = b // n_dev
                     imgs_j = imgs_j.reshape(n_dev, per, *imgs_j.shape[1:])
                     toks_j = toks_j.reshape(n_dev, per, *toks_j.shape[1:])
-                yield imgs_j, toks_j
+                    mask_j = mask_j.reshape(n_dev, per, *mask_j.shape[1:])
+                    labels_j = labels_j.reshape(n_dev, per, *labels_j.shape[1:])
+
+                yield imgs_j, toks_j, mask_j, labels_j
                 batch_imgs = []
                 batch_caps = []
 
@@ -152,8 +174,16 @@ def _hf_batch_generator(dataset_name: str, split: str, cfg: DataConfig) -> Itera
         if batch_imgs and not cfg.drop_last:
             imgs_np = np.stack(batch_imgs, axis=0)
             token_ids = tokenizer(batch_caps, cfg.max_length)
+            mask_np = make_mask(token_ids)
             imgs_j = jnp.asarray(np.ascontiguousarray(imgs_np))
             toks_j = jnp.asarray(np.ascontiguousarray(token_ids).astype(np.int32))
+            mask_j = jnp.asarray(mask_np)
+            mask_j = jnp.asarray(mask_np)
+            labels_np = np.concatenate(
+                [token_ids[:, 1:], np.full((token_ids.shape[0], 1), 0, dtype=np.int32)],
+                axis=1
+            )
+            labels_j = jnp.asarray(labels_np)
             if cfg.shard_for_pmap:
                 n_dev = jax.local_device_count()
                 b = imgs_j.shape[0]
@@ -162,21 +192,26 @@ def _hf_batch_generator(dataset_name: str, split: str, cfg: DataConfig) -> Itera
                     pad = n_dev - (b % n_dev)
                     imgs_j = jnp.pad(imgs_j, ((0, pad), (0, 0), (0, 0), (0, 0)))
                     toks_j = jnp.pad(toks_j, ((0, pad), (0, 0)))
+                    mask_j = jnp.pad(mask_j, ((0, pad), (0, 0)))
                     b = imgs_j.shape[0]
                 per = b // n_dev
                 imgs_j = imgs_j.reshape(n_dev, per, *imgs_j.shape[1:])
                 toks_j = toks_j.reshape(n_dev, per, *toks_j.shape[1:])
-            yield imgs_j, toks_j
+                mask_j = mask_j.reshape(n_dev, per, *mask_j.shape[1:])
+                labels_j = labels_j.reshape(n_dev, per, *labels_j.shape[1:])
+        
+            yield imgs_j, toks_j, mask_j, labels_j
 
         epoch += 1
 
 
 
-def make_dataloader(split: str, cfg: DataConfig, dataset_name: str) -> Iterator[Tuple[jnp.ndarray, jnp.ndarray]]:
-    """Create a dataloader iterator producing (images, caption_token_ids) from HF `datasets`.
+def make_dataloader(split: str, cfg: DataConfig, dataset_name: str) -> Iterator[Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, jnp.ndarray]]:
+    """Create a dataloader iterator producing (images, caption_token_ids, mask) from HF `datasets`.
 
     - images: [B,C,H,W] float32
     - caption_token_ids: [B, L] int32
+    - mask: [B, L] int32, with zeros after the EOS token
     """
     assert split in {"train", "validation", "test"} or split.startswith("train") or split.startswith("test")
     return _hf_batch_generator(dataset_name, split, cfg)
@@ -241,7 +276,9 @@ def visualize_batch(images: jnp.ndarray,
 if __name__ == "__main__":
     cfg = DataConfig(batch_size=8, num_epochs=1, shuffle=False, resize_to=128, augment=False)
     it = make_dataloader("train", cfg, "UCSC-VLAA/Recap-COCO-30K")
-    imgs, toks = next(it)
+    imgs, toks, mask, labels = next(it)
     print("imgs:", imgs.shape, imgs.dtype)
     print("toks:", toks.shape, toks.dtype)
+    print("labels:", labels.shape, labels.dtype)
+    print("mask:", mask.shape, mask.dtype)
     visualize_batch(imgs, toks)

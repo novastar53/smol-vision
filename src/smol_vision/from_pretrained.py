@@ -6,6 +6,7 @@ from smol_vision.config import Config
 from smol_vision.model import SmolVision
 
 
+
 @nnx.jit(static_argnums=(0, 1))
 def create_sharded_model(Model, config, rngs):
     model = Model(config=config, rngs=rngs)
