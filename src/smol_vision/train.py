@@ -109,7 +109,7 @@ for imgs, toks, mask, labels in it:
     # Truncate sequences at EOS for both predictions and targets
     pred_ids = jnp.argmax(logits, axis=-1)
     trunc_pred = truncate_at_eos(pred_ids, _eos_id)
-    trunc_gt   = truncate_at_eos(toks, _eos_id)
+    trunc_gt   = truncate_at_eos(labels, _eos_id)
 
     # Decode (skip special tokens for readability)
     pred_texts = [tok.decode(seq, skip_special_tokens=True) for seq in trunc_pred]
