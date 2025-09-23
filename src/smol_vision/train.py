@@ -48,7 +48,7 @@ total_params = count_params(m)
 print(f"{total_params=:,}")
 
 
-cfg = DataConfig(batch_size=8, num_epochs=1, shuffle=False, augment=False)
+cfg = DataConfig(batch_size=256, num_epochs=10, shuffle=True, augment=False)
 it = make_dataloader("train", cfg, "UCSC-VLAA/Recap-COCO-30K")
 
 
@@ -69,7 +69,7 @@ def step_fn(m, optimizer, imgs, toks, mask, labels):
     return loss, logits
 
 head_params = nnx.All(nnx.Param, nnx.PathContains('text_decoder'))
-tx = optax.adam(1e-4)
+tx = optax.adam(1e-3)
 optimizer = nnx.Optimizer(m, tx, wrt=head_params)
 
 
@@ -101,11 +101,10 @@ def greedy_generate(model, images, tok, max_new_tokens=64, eos_token="<|endoftex
             break
     return ids
 
-
-for i in range(80):
-    imgs, toks, mask, labels = next(it)
+step = 0
+for imgs, toks, mask, labels in it:
     loss, logits = step_fn(m, optimizer, imgs, toks, mask, labels)
-    print(f"{loss=}")
+    print(f"{step=},{loss=}")
 
     # Truncate sequences at EOS for both predictions and targets
     pred_ids = jnp.argmax(logits, axis=-1)
@@ -115,9 +114,9 @@ for i in range(80):
     # Decode (skip special tokens for readability)
     pred_texts = [tok.decode(seq, skip_special_tokens=True) for seq in trunc_pred]
     gt_texts   = [tok.decode(seq,   skip_special_tokens=True) for seq in trunc_gt]
-    print("Predicted captions:")
-    for t in pred_texts:
-        print("  ", t)
-    print("Ground truth captions:")
-    for t in gt_texts:
-        print("  ", t)
+
+    step += 1
+
+print("Predicted  - GT ")
+for pred, gt in zip(pred_texts, gt_texts):
+    print("  ", pred, "|", gt)
