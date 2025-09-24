@@ -135,7 +135,7 @@ def _hf_batch_generator(dataset_name: str, split: str, cfg: DataConfig) -> Itera
         for example in ds:
             # get image and caption
             img_obj = example.get("image")
-            cap = example.get("caption") or example.get("captions")
+            cap = example.get("recaption") or example.get("captions")
             if isinstance(cap, (list, tuple)):
                 # pick first caption if multiple
                 cap = cap[0] if len(cap) else ""

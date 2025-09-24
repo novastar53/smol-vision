@@ -63,14 +63,16 @@ def loss_fn(m, imgs, toks, mask, labels):
 
 @nnx.jit
 def step_fn(m, optimizer, imgs, toks, mask, labels):
-    diff_state = nnx.DiffState(0, head_params) # filter head params of the first argument
-    (loss, logits), grads = nnx.value_and_grad(loss_fn, argnums=diff_state, has_aux=True)(m, imgs, toks, mask, labels)
+    #diff_state = nnx.DiffState(0, trainable_params) # filter head params of the first argument
+    #(loss, logits), grads = nnx.value_and_grad(loss_fn, argnums=diff_state, has_aux=True)(m, imgs, toks, mask, labels)
+    (loss, logits), grads = nnx.value_and_grad(loss_fn, has_aux=True)(m, imgs, toks, mask, labels)
     optimizer.update(m, grads)
     return loss, logits
 
-head_params = nnx.All(nnx.Param, nnx.PathContains('text_decoder'))
-tx = optax.adam(1e-3)
-optimizer = nnx.Optimizer(m, tx, wrt=head_params)
+#trainable_params = nnx.All(nnx.Param, nnx.PathContains('vision_encoder'))
+trainable_params = nnx.Param
+tx = optax.adam(1e-4)
+optimizer = nnx.Optimizer(m, tx, wrt=trainable_params)
 
 
 #visualize_batch(imgs, toks)
@@ -104,7 +106,9 @@ def greedy_generate(model, images, tok, max_new_tokens=64, eos_token="<|endoftex
 step = 0
 for imgs, toks, mask, labels in it:
     loss, logits = step_fn(m, optimizer, imgs, toks, mask, labels)
+    print(40*"-")
     print(f"{step=},{loss=}")
+    print(40*"-")
 
     # Truncate sequences at EOS for both predictions and targets
     pred_ids = jnp.argmax(logits, axis=-1)
