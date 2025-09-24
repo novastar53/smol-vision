@@ -9,7 +9,7 @@ from dataclasses import dataclass
 class Config:
     dtype: jnp.dtype = jnp.bfloat16
     param_dtype: jnp.dtype = jnp.float32
-    use_bias: bool = True
+    use_bias: bool = False
     init_stddev: float = 0.02
     vocab_size: int = 49152
     block_size: int = 2048 
@@ -19,7 +19,6 @@ class Config:
     n_hidden: int = 1536
     n_heads: int = 9 
     n_kv_heads: int = 3
-    ln_epsilon: float = 1e6
     image_size: int = 224
     patch_size: int = 28
     grid_size: int = image_size // patch_size
