@@ -40,6 +40,49 @@ def _calc_attention(
 class SelfAttention(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs, causal: bool = False):
         self.config = config
+        slef.wqkv = nnx.Linear(
+            config.n_embed,
+            3 * config.n_embed,
+            kernel_init=nnx.initializers.normal(stddev=config.init_stddev),
+            use_bias=config.use_bias,
+            dtype=config.dtype,
+            rngs=rngs
+        )
+        self.c_proj = nnx.Linear(
+            config.n_embed,
+            config.n_embed,
+            kernel_init = nnx.initializers.normal(
+                stddev=config.init_stddev * (2 * (config.n_text_layers + config.n_vision_layers) ** -0.5)
+            ),
+            use_bias=config.use_bias,
+            dtype=config.dtype,
+            rngs=rngs
+        )
+        self.apply_rope = RoPE(config)
+    
+
+    def __call__(self, x)
+        B, _, C = x.shape
+        qkv = self.wqkv(x)
+        q, k, v = jnp.split(kv, 3, axis=-1) 
+
+        q = q.reshape((B, -1, self.config.n_heads, C // self.config.n_heads))
+        k = k.reshape((B, -1, self.config.n_heads, C // self.config.n_heads))
+        v = v.reshape((B, -1, self.config.n_heads, C // self.config.n_heads))
+        q = self.apply_rope(q)
+        k = self.apply_rope(k)
+        y = _calc_attention(
+            q, k, v, mask=mask 
+        )  # (B, T, n_head, C // n_head)
+        y = jnp.reshape(y, (B, -1, C))
+        y = self.c_proj(y)
+        return y
+
+
+
+class GQAttention(nnx.Module):
+    def __init__(self, config: Config, rngs: nnx.Rngs, causal: bool = False):
+        self.config = config
         self.wq = nnx.Linear(
             config.n_embed,
             config.n_embed,

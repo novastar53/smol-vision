@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import flax.nnx as nnx
 
 from smol_vision.config import Config
-from smol_vision.model import SmolVision
+from smol_vision.smol_vision import SmolVision
 
 
 
@@ -17,11 +17,11 @@ def create_sharded_model(Model, config, rngs):
     return model
 
 
-def load_hf_pretrained(model_name="HuggingFaceTB/SmolLM-135M"):
+def load_hf_pretrained():
     import torch
     from transformers import AutoModelForCausalLM
 
-    model = AutoModelForCausalLM.from_pretrained(model_name)
+    model = AutoModel.from_pretrained("UCSC-VLAA/openvision-vit-tiny-patch16-160", torch_dtype="auto")
     return model
 
 

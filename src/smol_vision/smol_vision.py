@@ -4,13 +4,13 @@ import flax.nnx as nnx
 
 from smol_vision.config import Config
 from smol_vision.glu import GLU
-from smol_vision.attn import SelfAttention
+from smol_vision.attn import GQAttention
 
 
 class VisionBlock(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs):
         self.config = config
-        self.attn = SelfAttention(config, rngs=rngs, causal=False)
+        self.attn = GQAttention(config, rngs=rngs, causal=False)
         self.rms_n_1 = nnx.RMSNorm(config.n_embed, 
                                    epsilon=config.ln_epsilon,
                                    dtype=config.dtype, rngs=rngs)
@@ -55,7 +55,7 @@ class VisionEncoder(nnx.Module):
 class TextBlock(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs):
         self.config = config
-        self.attn = SelfAttention(config, rngs=rngs, causal=True)
+        self.attn = GQAttention(config, rngs=rngs, causal=True)
         self.rms_n_1 = nnx.RMSNorm(config.n_embed, 
                                    epsilon=config.ln_epsilon,
                                    dtype=config.dtype, rngs=rngs)

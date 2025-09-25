@@ -25,6 +25,7 @@ class Config:
     n_channels: int = 3
     rope_theta: float = 1e-4  # base frequency for rope
     ln_epsilon: float = 1e-5 # constant to prevent division by zero
+    hf_tokenizer_name: str = "bert-base-uncased"
     sdpa_implementation: Literal["xla", "cudnn", "slow"] = (
         "xla"  # self-attention kernel implementation
     )
