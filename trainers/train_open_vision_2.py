@@ -6,9 +6,9 @@ import flax.nnx as nnx
 import optax
 import numpy as np
 
-from smol_vision.model import Config, SmolVision
+from smol_vision.o import Config, SmolVision
 from smol_vision.datasets.recap_coco import DataConfig, make_dataloader, visualize_batch
-from smol_vision.from_pretrained import from_hf_pretrained
+from smol_vision.models.open_vision_2.from_pretrained import from_hf_pretrained
 
 from transformers import AutoTokenizer
 

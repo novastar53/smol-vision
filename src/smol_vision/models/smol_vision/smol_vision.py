@@ -2,9 +2,9 @@ import jax
 import jax.numpy as jnp
 import flax.nnx as nnx
 
-from smol_vision.config import Config
-from smol_vision.glu import GLU
-from smol_vision.attn import GQAttention
+from smol_vision.models.smol_vision.config import Config
+from smol_vision.modules.glu import GLU
+from smol_vision.modules.attn import GQAttention
 
 
 class VisionBlock(nnx.Module):

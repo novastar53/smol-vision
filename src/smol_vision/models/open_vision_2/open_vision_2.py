@@ -2,9 +2,9 @@ import jax
 import jax.numpy as jnp
 import flax.nnx as nnx
 
-from smol_vision.config import Config
-from smol_vision.glu import GLU
-from smol_vision.attn import SelfAttention
+from smol_vision.models.smol_vision.config import Config
+from smol_vision.modules.glu import GLU
+from smol_vision.modules.attn import SelfAttention
 
 
 config_tiny_patch16_160 = Config(
@@ -108,7 +108,7 @@ class TextDecoder(nnx.Module):
         return x
 
 
-class SmolVision(nnx.Module):
+class OpenVision2(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs):
         self.config = config
         self.vision_encoder = VisionEncoder(config, rngs)
@@ -119,13 +119,4 @@ class SmolVision(nnx.Module):
         x_image = self.vision_encoder(x_image)
         y = self.text_decoder(x_image, x_text)
         return y
-
-
-
-# Load model directly
-from transformers import AutoModel
-model = AutoModel.from_pretrained("UCSC-VLAA/openvision-vit-tiny-patch16-160", torch_dtype="auto")
-
-
-
 

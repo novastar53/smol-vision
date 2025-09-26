@@ -4,8 +4,8 @@ import jax
 import jax.numpy as jnp
 import flax.nnx as nnx
 
-from smol_vision.config import Config
-from smol_vision.rope import RoPE
+from smol_vision.models.smol_vision.config import Config
+from smol_vision.modules.rope import RoPE
 
 
 def _calc_attention(
@@ -61,7 +61,7 @@ class SelfAttention(nnx.Module):
         self.apply_rope = RoPE(config)
     
 
-    def __call__(self, x)
+    def __call__(self, x):
         B, _, C = x.shape
         qkv = self.wqkv(x)
         q, k, v = jnp.split(kv, 3, axis=-1) 

@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import flax.nnx as nnx
 
-from smol_vision.config import Config
+from smol_vision.models.smol_vision.config import Config
 
 
 def calc_rope_omega_llama(
