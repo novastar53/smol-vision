@@ -116,8 +116,14 @@ for imgs, toks, mask, labels in it:
     trunc_gt   = truncate_at_eos(toks, _eos_id)
 
     # Decode (skip special tokens for readability)
-    pred_texts = [tok.decode(seq, skip_special_tokens=True) for seq in trunc_pred]
-    gt_texts   = [tok.decode(seq,   skip_special_tokens=True) for seq in trunc_gt]
+    pred_texts = [
+        tok.decode(seq, skip_special_tokens=True)
+        .replace('\r\n', '<NL>')
+        .replace('\r', '<NL>')
+        .replace('\n', '<NL>')
+        for seq in trunc_pred[:10]
+    ]
+    gt_texts   = [tok.decode(seq,   skip_special_tokens=True) for seq in trunc_gt[:10]]
 
     step += 1
 

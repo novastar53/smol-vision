@@ -28,7 +28,7 @@ class VisionBlock(nnx.Module):
 class VisionEncoder(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs):
         self.config = config
-        self.blocks = [ VisionBlock(config, rngs) for _ in range(config.n_vision_layers) ]
+        self.blocks = nnx.List([ VisionBlock(config, rngs) for _ in range(config.n_vision_layers) ])
         self.patch_embed = nnx.Linear(config.n_channels * config.patch_size * config.patch_size, 
                                       config.n_embed, 
                                       kernel_init=nnx.initializers.normal(stddev=config.init_stddev),
@@ -74,7 +74,7 @@ class TextBlock(nnx.Module):
 class TextDecoder(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs):
         self.config = config
-        self.h = [ TextBlock(config, rngs) for _ in range(config.n_text_layers) ]
+        self.h = nnx.List([ TextBlock(config, rngs) for _ in range(config.n_text_layers) ])
         self.wte = nnx.Embed(config.vocab_size, config.n_embed, 
                                      embedding_init=nnx.initializers.normal(stddev=config.init_stddev),
                                      dtype=config.dtype, rngs=rngs)
