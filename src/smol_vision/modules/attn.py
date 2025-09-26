@@ -40,11 +40,11 @@ def _calc_attention(
 class SelfAttention(nnx.Module):
     def __init__(self, config: Config, rngs: nnx.Rngs, causal: bool = False):
         self.config = config
-        slef.wqkv = nnx.Linear(
+        self.wqkv = nnx.Linear(
             config.n_embed,
             3 * config.n_embed,
             kernel_init=nnx.initializers.normal(stddev=config.init_stddev),
-            use_bias=config.use_bias,
+            use_bias=config.mlp_bias,
             dtype=config.dtype,
             rngs=rngs
         )
@@ -54,7 +54,7 @@ class SelfAttention(nnx.Module):
             kernel_init = nnx.initializers.normal(
                 stddev=config.init_stddev * (2 * (config.n_text_layers + config.n_vision_layers) ** -0.5)
             ),
-            use_bias=config.use_bias,
+            use_bias=config.mlp_bias,
             dtype=config.dtype,
             rngs=rngs
         )
@@ -87,7 +87,7 @@ class GQAttention(nnx.Module):
             config.n_embed,
             config.n_embed,
             kernel_init=nnx.initializers.normal(stddev=config.init_stddev),
-            use_bias=config.use_bias,
+            use_bias=config.mlp_bias,
             dtype=config.dtype,
             rngs=rngs
         )
@@ -95,7 +95,7 @@ class GQAttention(nnx.Module):
             config.n_embed,
             2 * config.n_kv_heads * config.n_embed // config.n_heads,
             kernel_init=nnx.initializers.normal(stddev=config.init_stddev),
-            use_bias=config.use_bias,
+            use_bias=config.mlp_bias,
             dtype=config.dtype,
             rngs=rngs
         )
@@ -105,7 +105,7 @@ class GQAttention(nnx.Module):
             kernel_init = nnx.initializers.normal(
                 stddev=config.init_stddev * (2 * (config.n_text_layers + config.n_vision_layers) ** -0.5)
             ),
-            use_bias=config.use_bias,
+            use_bias=config.mlp_bias,
             dtype=config.dtype,
             rngs=rngs
         )

@@ -9,7 +9,8 @@ from dataclasses import dataclass
 class Config:
     dtype: jnp.dtype = jnp.bfloat16
     param_dtype: jnp.dtype = jnp.float32
-    use_bias: bool = False
+    mlp_bias: bool = False
+    conv_bias: bool = False
     init_stddev: float = 0.02
     vocab_size: int = 49152
     block_size: int = 2048 
@@ -24,9 +25,10 @@ class Config:
     grid_size: int = image_size // patch_size
     n_channels: int = 3
     rope_theta: float = 1e-4  # base frequency for rope
-    ln_epsilon: float = 1e-5 # constant to prevent division by zero
+    ln_epsilon: float = 1e-6 # constant to prevent division by zero
     hf_tokenizer_name: str = "bert-base-uncased"
     sdpa_implementation: Literal["xla", "cudnn", "slow"] = (
         "xla"  # self-attention kernel implementation
     )
+    patch_embed: Literal["conv", "linear"] = "conv"
 

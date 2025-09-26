@@ -6,15 +6,15 @@ import flax.nnx as nnx
 import optax
 import numpy as np
 
-from smol_vision.o import Config, SmolVision
-from smol_vision.datasets.recap_coco import DataConfig, make_dataloader, visualize_batch
+from smol_vision.models.open_vision_2.config import Config
+from smol_vision.models.open_vision_2.open_vision_2 import OpenVision2
 from smol_vision.models.open_vision_2.from_pretrained import from_hf_pretrained
+from smol_vision.datasets.recap_coco import DataConfig, make_dataloader, visualize_batch
 
 from transformers import AutoTokenizer
 
-# --- Helpers: truncate at EOS and decode ---
-
-tok = AutoTokenizer.from_pretrained("HuggingFaceTB/SmolLM-135M", use_fast=True)
+config = Config()
+tok = AutoTokenizer.from_pretrained(config.hf_tokenizer_name, use_fast=True)
 
 # Determine EOS id (prefer explicit token string; fallback to tokenizer's eos_token_id)
 _eos_id = tok.convert_tokens_to_ids("<|endoftext|>")
@@ -40,9 +40,7 @@ def count_params(model):
     return total
 
 
-config = Config()
 rngs = nnx.Rngs(default=0)
-#m = SmolVision(config, rngs)
 m = from_hf_pretrained(config, rngs)
 total_params = count_params(m)
 print(f"{total_params=:,}")
